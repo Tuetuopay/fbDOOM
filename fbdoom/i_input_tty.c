@@ -53,6 +53,9 @@ int vanilla_keyboard_mapping = 1;
 
 static int shiftdown = 0;
 
+// Should we take no keyboard input?
+static int no_kb = 0;
+
 // Lookup table for mapping AT keycodes to their doom keycode
 static const char at_to_doom[] =
 {
@@ -428,6 +431,9 @@ static void UpdateShiftStatus(int pressed, unsigned char key)
 
 void I_GetEvent(void)
 {
+    if (no_kb)
+        return;
+
     event_t event;
     int pressed;
     unsigned char key;
@@ -493,6 +499,10 @@ void I_GetEvent(void)
 
 void I_InitInput(void)
 {
+    no_kb = M_CheckParm("-nokb");
+    if (no_kb)
+        return;
+
     kbd_init();
 
     //UpdateFocus();
