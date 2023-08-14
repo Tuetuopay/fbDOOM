@@ -177,8 +177,14 @@ void I_InitGraphics (void)
     printf("I_InitGraphics: framebuffer: x_res: %d, y_res: %d, x_virtual: %d, y_virtual: %d, bpp: %d, grayscale: %d\n",
             fb.xres, fb.yres, fb.xres_virtual, fb.yres_virtual, fb.bits_per_pixel, fb.grayscale);
 
-    printf("I_InitGraphics: framebuffer: RGBA: %d%d%d%d, red_off: %d, green_off: %d, blue_off: %d, transp_off: %d\n",
-            fb.red.length, fb.green.length, fb.blue.length, fb.transp.length, fb.red.offset, fb.green.offset, fb.blue.offset, fb.transp.offset);
+    i = M_CheckParmWithArgs("-bgra", 0);
+    if (i > 0) {
+        fb.red.offset = 0;
+        fb.blue.offset = 16;
+    }
+
+    printf("I_InitGraphics: framebuffer: %s: %d%d%d%d, red_off: %d, green_off: %d, blue_off: %d, transp_off: %d\n",
+            i > 0 ? "BGRA" : "RGBA", fb.red.length, fb.green.length, fb.blue.length, fb.transp.length, fb.red.offset, fb.green.offset, fb.blue.offset, fb.transp.offset);
 
     printf("I_InitGraphics: DOOM screen size: w x h: %d x %d\n", SCREENWIDTH, SCREENHEIGHT);
 
