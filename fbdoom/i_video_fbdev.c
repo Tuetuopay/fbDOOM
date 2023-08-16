@@ -605,3 +605,4 @@ void I_DisplayFPSDots (boolean dots_on)
 void I_CheckIsScreensaver (void)
 {
 }
+//}
