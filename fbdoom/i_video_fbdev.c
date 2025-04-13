@@ -56,14 +56,7 @@ int fb_scaling = 1;
 int usemouse = 0;
 int do_mmap = 0;
 
-struct color {
-    uint32_t b:8;
-    uint32_t g:8;
-    uint32_t r:8;
-    uint32_t a:8;
-};
-
-static struct color colors[256];
+static uint32_t colors[256];
 
 // The screen buffer; this is modified to draw things to the screen
 
@@ -112,41 +105,16 @@ typedef struct
 
 static uint16_t rgb565_palette[256];
 
-void cmap_to_rgb565(uint16_t * out, uint8_t * in, int in_pixels)
-{
-    int i, j;
-    struct color c;
-    uint16_t r, g, b;
-
-    for (i = 0; i < in_pixels; i++)
-    {
-        c = colors[*in]; 
-        r = ((uint16_t)(c.r >> 3)) << 11;
-        g = ((uint16_t)(c.g >> 2)) << 5;
-        b = ((uint16_t)(c.b >> 3)) << 0;
-        *out = (r | g | b);
-
-        in++;
-        for (j = 0; j < fb_scaling; j++) {
-            out++;
-        }
-    }
-}
-
 void cmap_to_fb(uint8_t * out, uint8_t * in, int in_pixels)
 {
-    int i, j, k;
-    struct color c;
+    int i, k;
     uint32_t pix;
-    uint16_t r, g, b;
 
     if (fb.bits_per_pixel == 32) {
         // Fastpath for RGBA 8888
         uint32_t *out32 = (uint32_t*)out;
         for (i = 0; i < in_pixels; i++) {
-            c = colors[*(in++)];
-            pix = (c.r << fb.red.offset | c.g << fb.green.offset | c.b << fb.blue.offset);
-
+            pix = colors[*(in++)];
             for (k = 0; k < fb_scaling; k++)
                 *(out32++) = pix;
         }
@@ -154,23 +122,12 @@ void cmap_to_fb(uint8_t * out, uint8_t * in, int in_pixels)
         return;
     }
 
-    for (i = 0; i < in_pixels; i++)
-    {
-        c = colors[*in];  /* R:8 G:8 B:8 format! */
-        r = (uint16_t)(c.r >> (8 - fb.red.length));
-        g = (uint16_t)(c.g >> (8 - fb.green.length));
-        b = (uint16_t)(c.b >> (8 - fb.blue.length));
-        pix = r << fb.red.offset;
-        pix |= g << fb.green.offset;
-        pix |= b << fb.blue.offset;
-
+    for (i = 0; i < in_pixels; i++) {
+        pix = colors[*(in++)];  /* R:8 G:8 B:8 format! */
         for (k = 0; k < fb_scaling; k++) {
-            for (j = 0; j < fb.bits_per_pixel/8; j++) {
-                *out = (pix >> (j*8));
-                out++;
-            }
+            memcpy(out, &pix, fb.bits_per_pixel / 8);
+            out += fb.bits_per_pixel / 8;
         }
-        in++;
     }
 }
 
@@ -503,29 +460,19 @@ void I_ReadScreen (byte* scr)
 
 void I_SetPalette (byte* palette)
 {
-	int i;
-	//col_t* c;
+    uint16_t r, g, b;
+    uint32_t pix;
+    int i;
 
-	//for (i = 0; i < 256; i++)
-	//{
-	//	c = (col_t*)palette;
-
-	//	rgb565_palette[i] = GFX_RGB565(gammatable[usegamma][c->r],
-	//								   gammatable[usegamma][c->g],
-	//								   gammatable[usegamma][c->b]);
-
-	//	palette += 3;
-	//}
-    
-
-    /* performance boost:
-     * map to the right pixel format over here! */
-
-    for (i=0; i<256; ++i ) {
-        colors[i].a = 0;
-        colors[i].r = gammatable[usegamma][*palette++];
-        colors[i].g = gammatable[usegamma][*palette++];
-        colors[i].b = gammatable[usegamma][*palette++];
+    for (i = 0; i < 256; i++) {
+        r = (uint16_t)gammatable[usegamma][*palette++];
+        g = (uint16_t)gammatable[usegamma][*palette++];
+        b = (uint16_t)gammatable[usegamma][*palette++];
+        r = (r >> (8 - fb.red.length));
+        g = (g >> (8 - fb.green.length));
+        b = (b >> (8 - fb.blue.length));
+        pix = (r << fb.red.offset | g << fb.green.offset | b << fb.blue.offset);
+        colors[i] = pix;
     }
 
     /* Set new color map in kernel framebuffer driver */
