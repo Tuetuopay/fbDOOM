@@ -62,6 +62,7 @@ static uint32_t colors[256];
 
 byte *I_VideoBuffer = NULL;
 byte *I_VideoBuffer_FB = NULL;
+byte *I_VideoBuffer_Line = NULL;
 
 /* framebuffer file descriptor */
 int fd_fb = 0;
@@ -181,11 +182,12 @@ void I_InitGraphics (void)
     if (do_mmap) {
         I_VideoBuffer_FB = mmap(NULL,
                                 fb.xres * fb.yres * fb.bits_per_pixel / 8,
-                                PROT_READ | PROT_WRITE,
+                                PROT_WRITE,
                                 MAP_SHARED | MAP_NORESERVE,
                                 fd_fb,
                                 0);
         memset(I_VideoBuffer_FB, 0, fb.xres * fb.yres * fb.bits_per_pixel / 8);
+        I_VideoBuffer_Line = (byte*)malloc(SCREENWIDTH * fb_scaling * fb.bits_per_pixel / 8);
     } else {
         // For a single write() syscall to fbdev
         I_VideoBuffer_FB = (byte*)malloc(fb.xres * fb.yres * (fb.bits_per_pixel/8));
@@ -419,14 +421,16 @@ void I_FinishUpdate (void)
         line_out += y_offset * fb.xres;
 
     while (y--) {
-        line_out += x_offset;
+        uint8_t *line = do_mmap ? I_VideoBuffer_Line : line_out + x_offset;
+        cmap_to_fb((void*)line, (void*)line_in, SCREENWIDTH);
 
-        cmap_to_fb((void*)line_out, (void*)line_in, SCREENWIDTH);
+        dy = 0;
+        if (!do_mmap) {
+            line_out += x_offset + line_w + x_offset_end;
+            dy = 1;
+        }
 
-        uint8_t *line = line_out;
-        line_out += line_w + x_offset_end;
-
-        for (dy = 0; dy < fb_scaling - 1; dy++) {
+        for (; dy < fb_scaling; dy++) {
             line_out += x_offset;
             memcpy(line_out, line, line_w);
             line_out += line_w + x_offset_end;
