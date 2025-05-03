@@ -106,29 +106,114 @@ typedef struct
 
 static uint16_t rgb565_palette[256];
 
-void cmap_to_fb(uint8_t * out, uint8_t * in, int in_pixels)
-{
-    int i, k;
+// The actual colormap to fb function is decided at runtime based on a few
+// parameters, to select the optimal one. (Of course, the fastest versions are
+// those I care about!). Numbers are provided for an Allwinner F1C100s at 3x
+// scaling, targetting 720p output.
+//
+// The first optimization is to perform regular memory accesses when possible,
+// that is, when a pixel neatly maps to a 8, 16, or 32-bit word. This skips a
+// call to memcpy, and a few arithmetic operations.
+// - generic: ~12.0 FPS average
+// - 32bpp:   ~28.5 FPS average, +16.5fps
+//
+// The second optimization is to manually unroll the loop for the scaling
+// factor. It has been done for the few factors likely to be found on
+// underpowered devices (because, yes, a 3GHz laptop can run this at 4K 60fps
+// for a factor of 10x with no optimizations).
+// - generic:        ~12.0 FPS average
+// - 32bpp:          ~28.5 FPS average, +16.5fps
+// - 32bpp unrolled: ~34.8 FPS average,  +6.3fps
+//
+// Lastly, we can use the fact our input line will always be 320px wide,
+// enabling us to load 4 colors at a time in a register by loading 32-bit words.
+// Bitshifts will be much faster than memory loads, with again a hand-unrolled
+// loop.
+// - generic:           ~12.0 FPS average
+// - 32bpp:             ~28.5 FPS average, +16.5fps
+// - 32bpp unrolled:    ~34.8 FPS average,  +6.3fps
+// - 32bpp unrolled 4x: ~40.2 FPS average,  +5.4fps
+//
+// Overall, this now runs at 40fps, up from the base 12fps, freeing CPU time for
+// other work.
+static void (*cmap_to_fb)(uint8_t* out, uint8_t* in, int in_pixels);
+
+static void cmap_to_fb_generic(uint8_t *out, uint8_t *in, int in_pixels) {
     uint32_t pix;
 
-    if (fb.bits_per_pixel == 32) {
-        // Fastpath for RGBA 8888
-        uint32_t *out32 = (uint32_t*)out;
-        for (i = 0; i < in_pixels; i++) {
-            pix = colors[*(in++)];
-            for (k = 0; k < fb_scaling; k++)
-                *(out32++) = pix;
-        }
-
-        return;
-    }
-
-    for (i = 0; i < in_pixels; i++) {
+    for (int i = 0; i < in_pixels; i++) {
         pix = colors[*(in++)];  /* R:8 G:8 B:8 format! */
-        for (k = 0; k < fb_scaling; k++) {
+        for (int k = 0; k < fb_scaling; k++) {
             memcpy(out, &pix, fb.bits_per_pixel / 8);
             out += fb.bits_per_pixel / 8;
         }
+    }
+}
+
+static void cmap_to_fb_32bpp_generic(uint8_t *out, uint8_t *in, int in_pixels) {
+    uint32_t *out32 = (uint32_t*)out;
+    // Side note: this CPU is so bad with branches that making the scaling loop
+    // outside provides a measurable performance improvement.
+    for (int k = 0; k < fb_scaling; k++)
+        for (int i = 0; i < in_pixels; i++)
+            out32[i * fb_scaling + k] = colors[in[i]];
+}
+
+static void cmap_to_fb_32bpp_1x(uint8_t *out, uint8_t *in, int in_pixels) {
+    uint32_t *in32 = (uint32_t*)in, *out32 = (uint32_t*)out;
+
+    for (int i = 0; i < in_pixels / 4; i++) {
+        uint32_t pixels = *(in32++);
+
+        *(out32++) = colors[(pixels >>= 8) & 0xff];
+        *(out32++) = colors[(pixels >>= 8) & 0xff];
+        *(out32++) = colors[(pixels >>= 8) & 0xff];
+        *(out32++) = colors[pixels & 0xff];
+    }
+}
+
+static void cmap_to_fb_32bpp_2x(uint8_t *out, uint8_t *in, int in_pixels) {
+    uint32_t *in32 = (uint32_t*)in, *out32 = (uint32_t*)out;
+
+    for (int i = 0; i < in_pixels / 4; i++) {
+        uint32_t pix, pixels = *(in32++);
+
+        pix = colors[(pixels >>= 8) & 0xff];
+        *(out32++) = pix;
+        *(out32++) = pix;
+        pix = colors[(pixels >>= 8) & 0xff];
+        *(out32++) = pix;
+        *(out32++) = pix;
+        pix = colors[(pixels >>= 8) & 0xff];
+        *(out32++) = pix;
+        *(out32++) = pix;
+        pix = colors[pixels & 0xff];
+        *(out32++) = pix;
+        *(out32++) = pix;
+    }
+}
+
+static void cmap_to_fb_32bpp_3x(uint8_t *out, uint8_t *in, int in_pixels) {
+    uint32_t *in32 = (uint32_t*)in, *out32 = (uint32_t*)out;
+    for (int i = 0; i < in_pixels / 4; i++) {
+        uint32_t pix, pixels = *(in32++);
+
+        pix = colors[pixels & 0xff];
+        *(out32++) = pix;
+        *(out32++) = pix;
+        *(out32++) = pix;
+        pix = colors[(pixels >>= 8) & 0xff];
+        *(out32++) = pix;
+        *(out32++) = pix;
+        *(out32++) = pix;
+        pix = colors[(pixels >>= 8) & 0xff];
+        *(out32++) = pix;
+        *(out32++) = pix;
+        *(out32++) = pix;
+        pix = colors[(pixels >>= 8) & 0xff];
+        *(out32++) = pix;
+        *(out32++) = pix;
+        *(out32++) = pix;
     }
 }
 
@@ -192,6 +277,16 @@ void I_InitGraphics (void)
         // For a single write() syscall to fbdev
         I_VideoBuffer_FB = (byte*)malloc(fb.xres * fb.yres * (fb.bits_per_pixel/8));
     }
+
+    if (fb.bits_per_pixel == 32)
+        switch (fb_scaling) {
+        case 1:  cmap_to_fb = cmap_to_fb_32bpp_1x; break;
+        case 2:  cmap_to_fb = cmap_to_fb_32bpp_2x; break;
+        case 3:  cmap_to_fb = cmap_to_fb_32bpp_3x; break;
+        default: cmap_to_fb = cmap_to_fb_32bpp_generic;
+        }
+    else
+        cmap_to_fb = cmap_to_fb_generic;
 
     screenvisible = true;
 
