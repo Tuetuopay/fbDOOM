@@ -1,5 +1,7 @@
 //
+// Copyright(C) 1993-1996 Id Software, Inc.
 // Copyright(C) 2005-2014 Simon Howard
+// Copyright(C) 2006 Ben Ryves 2006
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -11,30 +13,16 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// DESCRIPTION:
-//     List of features which can be enabled/disabled to slim down the
-//     program.
 //
+// mus2mid.h - Ben Ryves 2006 - http://benryves.com - benryves@benryves.com
+// Use to convert a MUS file into a single track, type 0 MIDI file.
 
-#ifndef DOOM_FEATURES_H
-#define DOOM_FEATURES_H
+#ifndef MUS2MID_H
+#define MUS2MID_H
 
-// Enables wad merging (the '-merge' command line parameter)
+#include "doomtype.h"
+#include "memio.h"
 
-#undef FEATURE_WAD_MERGE
+boolean mus2mid(MEMFILE *musinput, MEMFILE *midioutput);
 
-// Enables dehacked support ('-deh')
-
-#undef FEATURE_DEHACKED
-
-// Enables multiplayer support (network games)
-
-#undef FEATURE_MULTIPLAYER
-
-// Enables sound output
-
-// #undef FEATURE_SOUND
-
-#endif /* #ifndef DOOM_FEATURES_H */
-
-
+#endif /* #ifndef MUS2MID_H */

@@ -23,8 +23,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include "SDL.h"
-#include "SDL_mixer.h"
+#include "SDL/SDL.h"
+#include "SDL/SDL_mixer.h"
 
 #ifdef HAVE_LIBSAMPLERATE
 #include <samplerate.h>

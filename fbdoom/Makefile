@@ -21,14 +21,18 @@ OBJS+=$(OBJDIR)/i_input_at.o
 #OBJS+=$(OBJDIR)/i_input_tty.o
 OBJS+=$(OBJDIR)/i_input_dev_input.o
 
+OBJS+=$(OBJDIR)/i_sdlsound.o $(OBJDIR)/i_sdlmusic.o \
+	  $(OBJDIR)/mus2mid.o \
+	  $(OBJDIR)/gusconf.o
+
 CC=$(CROSS_COMPILE)gcc  # gcc or g++
 CFLAGS+=-ggdb3 -Os
 LDFLAGS+=-Wl,--gc-sections
-CFLAGS+=-ggdb3 -Wall -DNORMALUNIX -DLINUX -DSNDSERV # -DUSEASM
+CFLAGS+=-ggdb3 -Wall -DNORMALUNIX -DLINUX -DSNDSERV -DFEATURE_SOUND # -DUSEASM
 LIBS+=-lm -lc
 
 ifneq ($(NOSDL),1)
-	LIBS+= -lSDL
+	LIBS+= -lSDL -lSDL_mixer
 endif
 
 # subdirectory for objects
