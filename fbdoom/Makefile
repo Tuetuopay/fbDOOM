@@ -22,13 +22,16 @@ OBJS+=$(OBJDIR)/i_input_at.o
 OBJS+=$(OBJDIR)/i_input_dev_input.o
 
 CC=$(CROSS_COMPILE)gcc  # gcc or g++
-CFLAGS+=-ggdb3 -Os
-LDFLAGS+=-Wl,--gc-sections
-CFLAGS+=-ggdb3 -Wall -DNORMALUNIX -DLINUX -DSNDSERV # -DUSEASM
-LIBS+=-lm -lc
+override LDFLAGS += -Wl,--gc-sections
+override CFLAGS += -ggdb3 -Os -Wall -DNORMALUNIX -DLINUX -DSNDSERV # -DUSEASM
+LIBS += -lm -lc
+
+ifeq ($(ARCH),arm)
+	override CFLAGS += -march=armv5te -mcpu=arm926ej-s
+endif
 
 ifneq ($(NOSDL),1)
-	LIBS+= -lSDL
+	LIBS += -lSDL -lSDL_mixer
 endif
 
 # subdirectory for objects
