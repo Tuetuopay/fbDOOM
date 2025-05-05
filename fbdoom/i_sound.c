@@ -36,7 +36,7 @@
 
 // Sound sample rate to use for digital output (Hz)
 
-int snd_samplerate = 44100;
+int snd_samplerate = 48000;
 
 // Maximum number of bytes to dedicate to allocated sound effects.
 // (Default: 64MB)
@@ -57,7 +57,7 @@ char *snd_musiccmd = "";
 static sound_module_t *sound_module;
 static music_module_t *music_module;
 
-int snd_musicdevice = SNDDEVICE_SB;
+int snd_musicdevice = SNDDEVICE_GENMIDI;
 int snd_sfxdevice = SNDDEVICE_SB;
 
 // Sound modules
