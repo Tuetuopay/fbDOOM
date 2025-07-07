@@ -165,10 +165,10 @@ static void cmap_to_fb_32bpp_1x(uint8_t *out, uint8_t *in, int in_pixels) {
     for (int i = 0; i < in_pixels / 4; i++) {
         uint32_t pixels = *(in32++);
 
-        *(out32++) = colors[(pixels >>= 8) & 0xff];
-        *(out32++) = colors[(pixels >>= 8) & 0xff];
-        *(out32++) = colors[(pixels >>= 8) & 0xff];
         *(out32++) = colors[pixels & 0xff];
+        *(out32++) = colors[(pixels >>= 8) & 0xff];
+        *(out32++) = colors[(pixels >>= 8) & 0xff];
+        *(out32++) = colors[(pixels >>= 8) & 0xff];
     }
 }
 
@@ -178,16 +178,16 @@ static void cmap_to_fb_32bpp_2x(uint8_t *out, uint8_t *in, int in_pixels) {
     for (int i = 0; i < in_pixels / 4; i++) {
         uint32_t pix, pixels = *(in32++);
 
-        pix = colors[(pixels >>= 8) & 0xff];
-        *(out32++) = pix;
-        *(out32++) = pix;
-        pix = colors[(pixels >>= 8) & 0xff];
-        *(out32++) = pix;
-        *(out32++) = pix;
-        pix = colors[(pixels >>= 8) & 0xff];
-        *(out32++) = pix;
-        *(out32++) = pix;
         pix = colors[pixels & 0xff];
+        *(out32++) = pix;
+        *(out32++) = pix;
+        pix = colors[(pixels >>= 8) & 0xff];
+        *(out32++) = pix;
+        *(out32++) = pix;
+        pix = colors[(pixels >>= 8) & 0xff];
+        *(out32++) = pix;
+        *(out32++) = pix;
+        pix = colors[(pixels >>= 8) & 0xff];
         *(out32++) = pix;
         *(out32++) = pix;
     }
